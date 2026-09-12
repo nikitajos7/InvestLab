@@ -30,7 +30,7 @@ class LiquidityNeeds(str, Enum):
 class FundReliance(str, Enum):
     essential = "essential"
     important = "important"
-    non_essential = "non_essential"
+    non_essential = "non-essential"
 
 class InvestmentPreference(str, Enum):
     lower_risk = "lower_risk"
@@ -42,6 +42,11 @@ class MarketLossComfort(str, Enum):
     somewhat_uncomfortable = "somewhat_uncomfortable"
     comfortable = "comfortable"
     very_comfortable = "very_comfortable"
+    
+class RiskCapacity(str, Enum):
+    low = "low"
+    moderate = "moderate"
+    high = "high"
     
 class InvestorQuestionnaire(BaseModel):
     goal: InvestmentGoal
@@ -63,8 +68,49 @@ def health():
 
 @app.post("/profile")
 def create_profile(questionnaire: InvestorQuestionnaire):
-    risk_capacity = 0.0
+    risk_capacity = calculate_risk_capacity(questionnaire)
     
     return {"questionnaire": questionnaire,
             "risk_capacity": risk_capacity}
     
+    
+def calculate_risk_capacity(questionnaire: InvestorQuestionnaire) -> RiskCapacity:
+    time_horizon = questionnaire.time_horizon_years
+    liquidity_needs = questionnaire.liquidity_needs
+    fund_reliance = questionnaire.fund_reliance
+    
+    risk_score = 0
+    
+    if time_horizon < 6:
+        risk_score += 1
+    elif time_horizon < 11:
+        risk_score += 2
+    else:
+        risk_score += 3
+    
+    if liquidity_needs == LiquidityNeeds.high:
+        risk_score += 1
+    elif liquidity_needs == LiquidityNeeds.medium:
+        risk_score += 2
+    elif liquidity_needs == LiquidityNeeds.low:
+        risk_score += 3
+    
+    if fund_reliance == FundReliance.essential:
+        risk_score += 1
+    elif fund_reliance == FundReliance.important:
+        risk_score += 2
+    elif fund_reliance == FundReliance.non_essential:
+        risk_score += 3
+            
+    if risk_score < 6:
+        risk_capacity = RiskCapacity.low
+    elif risk_score == 6:
+        risk_capacity = RiskCapacity.moderate
+    else:
+        risk_capacity = RiskCapacity.high
+        
+    if risk_capacity == RiskCapacity.high:
+        if time_horizon <= 5 or liquidity_needs == LiquidityNeeds.high or fund_reliance == FundReliance.essential:
+            risk_capacity = RiskCapacity.moderate
+            
+    return risk_capacity
