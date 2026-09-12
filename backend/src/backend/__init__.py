@@ -43,6 +43,11 @@ class MarketLossComfort(str, Enum):
     comfortable = "comfortable"
     very_comfortable = "very_comfortable"
     
+class RiskCapacity(str, Enum):
+    low = "low"
+    moderate = "moderate"
+    high = "high"
+    
 class InvestorQuestionnaire(BaseModel):
     goal: InvestmentGoal
     time_horizon_years: int = Field(gt=0, le=100)
@@ -69,12 +74,12 @@ def create_profile(questionnaire: InvestorQuestionnaire):
             "risk_capacity": risk_capacity}
     
     
-def calculate_risk_capacity(questionnaire: InvestorQuestionnaire) -> str:
+def calculate_risk_capacity(questionnaire: InvestorQuestionnaire) -> RiskCapacity:
     time_horizon = questionnaire.time_horizon_years
     liquidity_needs = questionnaire.liquidity_needs
     fund_reliance = questionnaire.fund_reliance
     
-    risk_score = 0.0
+    risk_score = 0
     
     if time_horizon < 6:
         risk_score += 1
@@ -96,18 +101,16 @@ def calculate_risk_capacity(questionnaire: InvestorQuestionnaire) -> str:
         risk_score += 2
     elif fund_reliance == FundReliance.non_essential:
         risk_score += 3
-        
-    risk_score /= 3
             
-    if risk_score < 1.67:
-        risk_capacity = "low"
-    elif risk_score < 2.34:
-        risk_capacity = "moderate"
+    if risk_score < 6:
+        risk_capacity = RiskCapacity.low
+    elif risk_score == 6:
+        risk_capacity = RiskCapacity.moderate
     else:
-        risk_capacity = "high"
+        risk_capacity = RiskCapacity.high
         
-    if risk_capacity == "high":
-        if time_horizon <= 5 or liquidity_needs == "high" or fund_reliance == "essential":
-            risk_capacity = "moderate"
+    if risk_capacity == RiskCapacity.high:
+        if time_horizon <= 5 or liquidity_needs == LiquidityNeeds.high or fund_reliance == FundReliance.essential:
+            risk_capacity = RiskCapacity.moderate
             
     return risk_capacity
