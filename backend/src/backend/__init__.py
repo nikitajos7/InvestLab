@@ -53,6 +53,13 @@ class RiskTolerance(str, Enum):
     moderate = "moderate"
     high = "high"
     
+class RiskProfile(str, Enum):
+    very_low = "very_low"
+    low = "low"
+    moderate = "moderate"
+    high = "high"
+    very_high = "very_high"
+    
 class InvestorQuestionnaire(BaseModel):
     goal: InvestmentGoal
     time_horizon_years: int = Field(gt=0, le=100)
@@ -76,9 +83,12 @@ def create_profile(questionnaire: InvestorQuestionnaire):
     risk_capacity = calculate_risk_capacity(questionnaire)
     risk_tolerance = calculate_risk_tolerance(questionnaire)
     
+    risk_profile = calculate_risk_profile(risk_capacity, risk_tolerance)
+    
     return {"questionnaire": questionnaire,
             "risk_capacity": risk_capacity,
-            "risk_tolerance": risk_tolerance}
+            "risk_tolerance": risk_tolerance,
+            "risk_profile": risk_profile}
     
     
 def calculate_risk_capacity(questionnaire: InvestorQuestionnaire) -> RiskCapacity:
@@ -165,4 +175,41 @@ def calculate_risk_tolerance(questionnaire: InvestorQuestionnaire) -> RiskTolera
         risk_tolerance = RiskTolerance.moderate
     
     return risk_tolerance
+
+def calculate_risk_profile(risk_capacity: RiskCapacity, risk_tolerance: RiskTolerance) -> RiskProfile:
+    risk_capacity_score = 0
+    risk_tolerance_score = 0
     
+    if risk_capacity == RiskCapacity.low:
+        risk_capacity_score += 1
+    elif risk_capacity == RiskCapacity.moderate:
+        risk_capacity_score += 2
+    elif risk_capacity == RiskCapacity.high:
+        risk_capacity_score += 3
+        
+    if risk_tolerance == RiskTolerance.low:
+        risk_tolerance_score += 1
+    elif risk_tolerance == RiskTolerance.moderate:
+        risk_tolerance_score += 2
+    elif risk_tolerance == RiskTolerance.high:
+        risk_tolerance_score += 3
+        
+    risk_profile_score = (0.6 * risk_capacity_score) + (0.4 * risk_tolerance_score)
+    
+    if risk_profile_score < 1.4:
+        risk_profile = RiskProfile.very_low
+    elif risk_profile_score < 1.8:
+        risk_profile = RiskProfile.low
+    elif risk_profile_score < 2.2:
+        risk_profile = RiskProfile.moderate
+    elif risk_profile_score < 2.6:
+        risk_profile = RiskProfile.high
+    else:
+        risk_profile = RiskProfile.very_high
+        
+    if risk_profile == RiskProfile.very_high and (risk_capacity != RiskCapacity.high or risk_tolerance != RiskTolerance.high):
+        risk_profile = RiskProfile.high
+    elif risk_profile == RiskProfile.high and (risk_capacity == RiskCapacity.low or risk_tolerance == RiskTolerance.low):
+        risk_profile = RiskProfile.moderate
+        
+    return risk_profile
