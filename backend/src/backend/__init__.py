@@ -48,6 +48,11 @@ class RiskCapacity(str, Enum):
     moderate = "moderate"
     high = "high"
     
+class RiskTolerance(str, Enum):
+    low = "low"
+    moderate = "moderate"
+    high = "high"
+    
 class InvestorQuestionnaire(BaseModel):
     goal: InvestmentGoal
     time_horizon_years: int = Field(gt=0, le=100)
@@ -69,9 +74,11 @@ def health():
 @app.post("/profile")
 def create_profile(questionnaire: InvestorQuestionnaire):
     risk_capacity = calculate_risk_capacity(questionnaire)
+    risk_tolerance = calculate_risk_tolerance(questionnaire)
     
     return {"questionnaire": questionnaire,
-            "risk_capacity": risk_capacity}
+            "risk_capacity": risk_capacity,
+            "risk_tolerance": risk_tolerance}
     
     
 def calculate_risk_capacity(questionnaire: InvestorQuestionnaire) -> RiskCapacity:
@@ -114,3 +121,48 @@ def calculate_risk_capacity(questionnaire: InvestorQuestionnaire) -> RiskCapacit
             risk_capacity = RiskCapacity.moderate
             
     return risk_capacity
+
+def calculate_risk_tolerance(questionnaire: InvestorQuestionnaire) -> RiskTolerance:
+    market_drop_response = questionnaire.market_drop_response
+    investment_preference = questionnaire.investment_preference
+    market_loss_comfort = questionnaire.market_loss_comfort
+    
+    risk_score = 0
+    
+    if market_drop_response == MarketDropResponse.sell_all:
+        risk_score += 1
+    elif market_drop_response == MarketDropResponse.sell_some:
+        risk_score += 2
+    elif market_drop_response == MarketDropResponse.hold:
+        risk_score += 3
+    elif market_drop_response == MarketDropResponse.invest_more:
+        risk_score += 4
+        
+    if investment_preference == InvestmentPreference.lower_risk:
+        risk_score += 1
+    elif investment_preference == InvestmentPreference.balanced:
+        risk_score += 2
+    elif investment_preference == InvestmentPreference.higher_growth:
+        risk_score += 3
+        
+    if market_loss_comfort == MarketLossComfort.very_uncomfortable:
+        risk_score += 1
+    elif market_loss_comfort == MarketLossComfort.somewhat_uncomfortable:
+        risk_score += 2
+    elif market_loss_comfort == MarketLossComfort.comfortable:
+        risk_score += 3
+    elif market_loss_comfort == MarketLossComfort.very_comfortable:
+        risk_score += 4
+            
+    if risk_score < 5:
+        risk_tolerance = RiskTolerance.low
+    elif risk_score < 9:
+        risk_tolerance = RiskTolerance.moderate
+    else:
+        risk_tolerance = RiskTolerance.high
+        
+    if risk_tolerance == RiskTolerance.high and investment_preference == InvestmentPreference.lower_risk:
+        risk_tolerance = RiskTolerance.moderate
+    
+    return risk_tolerance
+    
