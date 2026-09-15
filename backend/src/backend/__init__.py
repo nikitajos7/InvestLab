@@ -60,6 +60,35 @@ class RiskProfile(str, Enum):
     high = "high"
     very_high = "very_high"
     
+CAPACITY_EXPLANATIONS = {
+    RiskCapacity.low: "Your financial circumstances indicate a low capacity for investment risk.",
+    RiskCapacity.moderate: "Your financial circumstances indicate a moderate capacity for investment risk.",
+    RiskCapacity.high: "Your financial circumstances indicate a high capacity for investment risk.",
+}
+
+TOLERANCE_EXPLANATIONS = {
+    RiskTolerance.low: "Your responses indicate a low willingness to accept investment risk and market volatility.",
+    RiskTolerance.moderate: "Your responses indicate a moderate willingness to accept investment risk and market volatility.",
+    RiskTolerance.high: "Your responses indicate a high willingness to accept investment risk and market volatility.",
+}
+
+PROFILE_EXPLANATIONS = {
+    (RiskCapacity.low, RiskTolerance.low): "Your low risk capacity and low risk tolerance result in a Very Low overall risk profile.",
+    (RiskCapacity.low, RiskTolerance.moderate): "Your low risk capacity keeps your overall risk profile at Low despite moderate risk tolerance.",
+    (RiskCapacity.low, RiskTolerance.high): "Your high risk tolerance raises your overall profile, but low risk capacity limits it to Moderate.",
+    (RiskCapacity.moderate, RiskTolerance.low): "Your low risk tolerance keeps your overall risk profile at Low despite moderate risk capacity.",
+    (RiskCapacity.moderate, RiskTolerance.moderate): "Your moderate risk capacity and tolerance result in a Moderate overall risk profile.",
+    (RiskCapacity.moderate, RiskTolerance.high): "Your high risk tolerance combined with moderate risk capacity results in a High overall risk profile.",
+    (RiskCapacity.high, RiskTolerance.low): "Although your risk capacity is high, low risk tolerance limits your overall risk profile to Moderate.",
+    (RiskCapacity.high, RiskTolerance.moderate): "Your high risk capacity supports greater risk, while moderate risk tolerance limits your overall profile to High.",
+    (RiskCapacity.high, RiskTolerance.high): "Your high risk capacity and high risk tolerance result in a Very High overall risk profile.",
+}
+
+class ProfileExplanation(BaseModel):
+    capacity_explanation: str
+    tolerance_explanation: str
+    profile_explanation: str
+    
 class InvestorQuestionnaire(BaseModel):
     goal: InvestmentGoal
     time_horizon_years: int = Field(gt=0, le=100)
@@ -85,10 +114,13 @@ def create_profile(questionnaire: InvestorQuestionnaire):
     
     risk_profile = calculate_risk_profile(risk_capacity, risk_tolerance)
     
+    profile_explanation = generate_profile_explanation(risk_capacity, risk_tolerance)
+    
     return {"questionnaire": questionnaire,
             "risk_capacity": risk_capacity,
             "risk_tolerance": risk_tolerance,
-            "risk_profile": risk_profile}
+            "risk_profile": risk_profile,
+            "profile_explanation": profile_explanation}
     
     
 def calculate_risk_capacity(questionnaire: InvestorQuestionnaire) -> RiskCapacity:
@@ -213,3 +245,6 @@ def calculate_risk_profile(risk_capacity: RiskCapacity, risk_tolerance: RiskTole
         risk_profile = RiskProfile.moderate
         
     return risk_profile
+
+def generate_profile_explanation(risk_capacity: RiskCapacity, risk_tolerance: RiskTolerance) -> ProfileExplanation:
+    return ProfileExplanation(capacity_explanation=CAPACITY_EXPLANATIONS[risk_capacity], tolerance_explanation=TOLERANCE_EXPLANATIONS[risk_tolerance], profile_explanation=PROFILE_EXPLANATIONS[(risk_capacity,risk_tolerance)])
