@@ -99,6 +99,13 @@ class InvestorQuestionnaire(BaseModel):
     market_loss_comfort: MarketLossComfort
     experience: InvestingExperience
 
+class InvestorProfile(BaseModel):
+    questionnaire: InvestorQuestionnaire
+    risk_capacity: RiskCapacity
+    risk_tolerance: RiskTolerance
+    risk_profile: RiskProfile
+    profile_explanation: ProfileExplanation
+
 @app.get("/")
 def root():
     return {"message": "InvestLab API"}
@@ -107,7 +114,7 @@ def root():
 def health():
     return {"status": "ok"}
 
-@app.post("/profile")
+@app.post("/profile", response_model=InvestorProfile)
 def create_profile(questionnaire: InvestorQuestionnaire):
     risk_capacity = calculate_risk_capacity(questionnaire)
     risk_tolerance = calculate_risk_tolerance(questionnaire)
@@ -116,11 +123,15 @@ def create_profile(questionnaire: InvestorQuestionnaire):
     
     profile_explanation = generate_profile_explanation(risk_capacity, risk_tolerance)
     
-    return {"questionnaire": questionnaire,
-            "risk_capacity": risk_capacity,
-            "risk_tolerance": risk_tolerance,
-            "risk_profile": risk_profile,
-            "profile_explanation": profile_explanation}
+    investor_profile = InvestorProfile(
+        questionnaire=questionnaire,
+        risk_capacity=risk_capacity,
+        risk_tolerance=risk_tolerance,
+        risk_profile=risk_profile,
+        profile_explanation=profile_explanation
+    )
+
+    return investor_profile
     
     
 def calculate_risk_capacity(questionnaire: InvestorQuestionnaire) -> RiskCapacity:
