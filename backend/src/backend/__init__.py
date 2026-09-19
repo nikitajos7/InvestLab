@@ -1,7 +1,8 @@
 from enum import Enum
+import math
 
 from fastapi import FastAPI
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 app = FastAPI()
 
@@ -105,6 +106,46 @@ class InvestorProfile(BaseModel):
     risk_tolerance: RiskTolerance
     risk_profile: RiskProfile
     profile_explanation: ProfileExplanation
+    
+class AssetAllocation(BaseModel):
+    stocks: float = Field(ge=0, le=1)
+    bonds: float = Field(ge=0, le=1)
+    cash: float = Field(ge=0, le=1)
+    
+    @model_validator(mode="after")
+    def validate_allocation(self):
+        total = self.stocks + self.bonds + self.cash
+        if not math.isclose(total, 1.0):
+            raise ValueError("The sum of stocks, bonds, and cash must be approximately 1.")
+        return self
+    
+ASSET_ALLOCATIONS = {
+    RiskProfile.very_low: {"stocks": 0.2, "bonds": 0.5, "cash": 0.3},
+    RiskProfile.low: {"stocks": 0.4, "bonds": 0.5, "cash": 0.1},
+    RiskProfile.moderate: {"stocks": 0.6, "bonds": 0.35, "cash": 0.05},
+    RiskProfile.high: {"stocks": 0.8, "bonds": 0.15, "cash": 0.05},
+    RiskProfile.very_high: {"stocks": 0.95, "bonds": 0.0, "cash": 0.05},
+}
+
+US_STOCK_WEIGHT = 0.60
+INTERNATIONAL_STOCK_WEIGHT = 0.40
+
+US_BOND_WEIGHT = 0.70
+INTERNATIONAL_BOND_WEIGHT = 0.30
+    
+class PortfolioAllocation(BaseModel):
+    us_stocks: float = Field(ge=0, le=1)
+    international_stocks: float = Field(ge=0, le=1)
+    us_bonds: float = Field(ge=0, le=1)
+    international_bonds: float = Field(ge=0, le=1)
+    cash: float = Field(ge=0, le=1)
+
+    @model_validator(mode="after")
+    def validate_allocation(self):
+        total = self.us_stocks + self.international_stocks + self.us_bonds + self.international_bonds + self.cash
+        if not math.isclose(total, 1.0):
+            raise ValueError("The sum of all asset classes must be approximately 1.")
+        return self
 
 @app.get("/")
 def root():
@@ -259,3 +300,21 @@ def calculate_risk_profile(risk_capacity: RiskCapacity, risk_tolerance: RiskTole
 
 def generate_profile_explanation(risk_capacity: RiskCapacity, risk_tolerance: RiskTolerance) -> ProfileExplanation:
     return ProfileExplanation(capacity_explanation=CAPACITY_EXPLANATIONS[risk_capacity], tolerance_explanation=TOLERANCE_EXPLANATIONS[risk_tolerance], profile_explanation=PROFILE_EXPLANATIONS[(risk_capacity,risk_tolerance)])
+
+def get_asset_allocation(risk_profile: RiskProfile) -> AssetAllocation:
+    return AssetAllocation(**ASSET_ALLOCATIONS[risk_profile])
+
+def get_portfolio_allocation(asset_allocation: AssetAllocation) -> PortfolioAllocation:
+    us_stocks = asset_allocation.stocks * US_STOCK_WEIGHT
+    international_stocks = asset_allocation.stocks * INTERNATIONAL_STOCK_WEIGHT
+    us_bonds = asset_allocation.bonds * US_BOND_WEIGHT
+    international_bonds = asset_allocation.bonds * INTERNATIONAL_BOND_WEIGHT
+    cash = asset_allocation.cash
+    
+    return PortfolioAllocation(
+        us_stocks=us_stocks,
+        international_stocks=international_stocks,
+        us_bonds=us_bonds,
+        international_bonds=international_bonds,
+        cash=cash
+    )
